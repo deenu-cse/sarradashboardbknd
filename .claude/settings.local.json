@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ls -la \"c:\\\\Users\\\\hp\\\\Desktop\\\\sarrabknd\\\\\")",
-      "Read(//c/Users/hp/Desktop/**)"
-    ]
-  }
-}
