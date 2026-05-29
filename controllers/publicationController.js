@@ -1,6 +1,5 @@
 const Publication = require('../models/Publication');
 
-// Input validation helper
 const validatePublicationInput = (title, author) => {
   const errors = [];
 
@@ -21,7 +20,6 @@ exports.createPublication = async (req, res) => {
   try {
     const { title, author, description, datePublished } = req.body;
 
-    // Validate input
     const validationErrors = validatePublicationInput(title, author);
     if (validationErrors.length > 0) {
       return res.status(400).json({ message: validationErrors.join(', ') });
@@ -39,7 +37,6 @@ exports.createPublication = async (req, res) => {
       }
     }
 
-    // At least one file should be present
     if (!coverImage && !pdfUrl) {
       return res.status(400).json({ message: 'Cover image or PDF is required' });
     }
@@ -63,7 +60,6 @@ exports.createPublication = async (req, res) => {
 
 exports.getPublications = async (req, res) => {
   try {
-    // Add pagination
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;

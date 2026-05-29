@@ -8,7 +8,8 @@ dotenv.config();
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  timeout: 120000 // 120 seconds to prevent Request Timeout for large PDFs
 });
 
 // File filter for allowed types
@@ -29,35 +30,29 @@ const fileFilter = (req, file, cb) => {
 // Storage configuration
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'sarra_assets',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp', 'pdf', 'mp4', 'webm'],
-    resource_type: 'auto',
-    // Generate unique filenames to prevent overwrites
-    public_id: (req, file) => {
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(7);
-      return `${file.fieldname}_${timestamp}_${random}`;
-    },
-  },
+  params: async (req, file) => {
+    return {
+      folder: 'sarra_assets',
+      allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp', 'pdf', 'mp4', 'webm'],
+      resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'auto',
+      public_id: `${file.fieldname}_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+    };
+  }
 });
 
-// Multer upload with size limits and validation
 const upload = multer({
   storage: storage,
   limits: {
-    // File size limits
-    fileSize: 10 * 1024 * 1024, // 10MB max (5MB for images, 10MB for documents)
-    files: 10, // Max 10 files per request
+    fileSize: 30 * 1024 * 1024,
+    files: 10,
   },
   fileFilter: fileFilter,
 });
 
-// Error handling wrapper for multer
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File too large. Maximum size is 10MB.' });
+      return res.status(400).json({ message: 'File too large. Maximum size is 30MB.' });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({ message: 'Too many files. Maximum is 10 files.' });
