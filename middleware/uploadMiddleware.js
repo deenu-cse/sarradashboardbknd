@@ -31,11 +31,17 @@ const fileFilter = (req, file, cb) => {
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
+    const isPdf = file.mimetype === 'application/pdf';
+    // Extract file extension from original name (e.g. ".pdf")
+    const ext = file.originalname ? file.originalname.substring(file.originalname.lastIndexOf('.')) : '';
+    const uniqueId = `${file.fieldname}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
     return {
       folder: 'sarra_assets',
       allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp', 'pdf', 'mp4', 'webm'],
-      resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'auto',
-      public_id: `${file.fieldname}_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      resource_type: isPdf ? 'raw' : 'auto',
+      // Append .pdf extension so Cloudinary serves correct Content-Type header
+      public_id: isPdf ? `${uniqueId}${ext}` : uniqueId,
     };
   }
 });

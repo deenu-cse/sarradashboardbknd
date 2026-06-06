@@ -22,11 +22,15 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
       fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
+      // Allow Cloudinary PDFs to be embedded/viewed in browser
+      objectSrc: ["'self'", "https://res.cloudinary.com"],
+      frameSrc: ["'self'", "https://res.cloudinary.com"],
+      connectSrc: ["'self'", "https://res.cloudinary.com"],
       upgradeInsecureRequests: [],
     },
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
