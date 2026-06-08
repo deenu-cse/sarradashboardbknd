@@ -48,7 +48,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // CORS CONFIGURATION - Strict whitelist from env
 const corsOptions = {
   origin: function (origin, callback) {
-    const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'https://sarra-neon.vercel.app'];
+    const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'https://sarra-neon.vercel.app', 'https://sarradashboard.vercel.app'];
     const envOrigins = process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
       : [];
