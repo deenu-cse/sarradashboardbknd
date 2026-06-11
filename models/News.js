@@ -10,6 +10,7 @@ const newsSchema = new mongoose.Schema({
   title: { type: String, required: true },
   slug: { type: String, unique: true },
   thumbnail: { type: String },
+  district_news: { type: Boolean, default: false },
   date: { type: Date, default: Date.now },
   sections: [newsSectionSchema],
   images: [{ type: String }]

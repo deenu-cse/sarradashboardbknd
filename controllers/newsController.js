@@ -28,7 +28,7 @@ const validateNewsInput = (title, sections) => {
 
 exports.createNews = async (req, res) => {
   try {
-    const { title } = req.body;
+    const { title, district_news } = req.body;
 
     // Parse sections if string
     let sections = [];
@@ -72,6 +72,7 @@ exports.createNews = async (req, res) => {
     const news = new News({
       title: title.trim(),
       thumbnail,
+      district_news: district_news === 'true' || district_news === true,
       sections,
       images
     });
