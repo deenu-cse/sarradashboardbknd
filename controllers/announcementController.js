@@ -7,14 +7,14 @@ const validateAnnouncementInput = (title, description) => {
 
   if (!title || typeof title !== 'string' || title.trim().length === 0) {
     errors.push('Title is required');
-  } else if (title.trim().length > 200) {
-    errors.push('Title must be less than 200 characters');
+  } else if (title.trim().length > 1000) {
+    errors.push('Title must be less than 1000 characters');
   }
 
   if (!description || typeof description !== 'string' || description.trim().length === 0) {
     errors.push('Description is required');
-  } else if (description.trim().length > 5000) {
-    errors.push('Description must be less than 5000 characters');
+  } else if (description.trim().length > 15000) {
+    errors.push('Description must be less than 15000 characters');
   }
 
   return errors;

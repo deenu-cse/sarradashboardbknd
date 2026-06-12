@@ -7,18 +7,18 @@ const validateNewsInput = (title, sections) => {
 
   if (!title || typeof title !== 'string' || title.trim().length === 0) {
     errors.push('Title is required');
-  } else if (title.trim().length > 200) {
-    errors.push('Title must be less than 200 characters');
+  } else if (title.trim().length > 1000) {
+    errors.push('Title must be less than 1000 characters');
   }
 
   // Validate sections if provided
   if (sections && Array.isArray(sections)) {
     sections.forEach((section, index) => {
-      if (section.title && section.title.length > 200) {
-        errors.push(`Section ${index + 1}: Title must be less than 200 characters`);
+      if (section.title && section.title.length > 1000) {
+        errors.push(`Section ${index + 1}: Title must be less than 1000 characters`);
       }
-      if (section.description && section.description.length > 5000) {
-        errors.push(`Section ${index + 1}: Description must be less than 5000 characters`);
+      if (section.description && section.description.length > 15000) {
+        errors.push(`Section ${index + 1}: Description must be less than 15000 characters`);
       }
     });
   }
