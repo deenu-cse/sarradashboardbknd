@@ -14,6 +14,8 @@ dotenv.config();
 const app = express();
 
 // SECURITY HEADERS (Helmet.js)
+const isProduction = process.env.NODE_ENV === 'production' && process.env.ENABLE_HTTPS === 'true';
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -26,16 +28,16 @@ app.use(helmet({
       objectSrc: ["'self'", "https://res.cloudinary.com"],
       frameSrc: ["'self'", "https://res.cloudinary.com"],
       connectSrc: ["'self'", "https://res.cloudinary.com"],
-      upgradeInsecureRequests: [],
+      ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
     },
   },
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  hsts: {
+  hsts: isProduction ? {
     maxAge: 31536000,
     includeSubDomains: true,
     preload: true,
-  },
+  } : false,
 }));
 
 // Hide X-Powered-By header
