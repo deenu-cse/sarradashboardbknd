@@ -16,6 +16,29 @@ const app = express();
 // Trust proxy for Render load balancers - critical for rate limiting and secure cookies
 app.set('trust proxy', 1);
 
+// CORS CONFIGURATION - Strict whitelist from env
+// CRITICAL: This MUST be placed before express.json() and helmet to ensure all errors return CORS headers!
+const corsOptions = {
+  origin: function (origin, callback) {
+    const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'https://sarra-neon.vercel.app', 'https://sarradashboard.vercel.app'];
+    const envOrigins = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+      : [];
+    const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
+    // Allow requests with no origin (mobile apps, curl requests) in development
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400,
+};
+app.use(cors(corsOptions));
+
 // SECURITY HEADERS (Helmet.js)
 const isProduction = process.env.NODE_ENV === 'production' && process.env.ENABLE_HTTPS === 'true';
 
@@ -50,28 +73,6 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// CORS CONFIGURATION - Strict whitelist from env
-const corsOptions = {
-  origin: function (origin, callback) {
-    const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'https://sarra-neon.vercel.app', 'https://sarradashboard.vercel.app'];
-    const envOrigins = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-      : [];
-    const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
-    // Allow requests with no origin (mobile apps, curl requests) in development
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  maxAge: 86400,
-};
-app.use(cors(corsOptions));
-
 // COOKIE PARSER
 app.use(cookieParser());
 
@@ -87,7 +88,7 @@ const generalLimiter = rateLimit({
 // STRICTER RATE LIMITING for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs (login attempts)
+  max: 50, // Increased to 50 for testing, change back to 10 in prod
   message: { message: 'Too many login attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
