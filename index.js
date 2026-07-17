@@ -17,7 +17,6 @@ const app = express();
 app.set('trust proxy', 1);
 
 // CORS CONFIGURATION - Strict whitelist from env
-// CRITICAL: This MUST be placed before express.json() and helmet to ensure all errors return CORS headers!
 const corsOptions = {
   origin: function (origin, callback) {
     const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'https://sarra-neon.vercel.app', 'https://sarradashboard.vercel.app'];

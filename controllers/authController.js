@@ -98,11 +98,10 @@ exports.login = async (req, res) => {
       ip: req.ip,
     });
 
-    // Set refresh token as httpOnly cookie (SECURE - never in localStorage)
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
       path: '/',
     });
@@ -182,8 +181,8 @@ exports.refreshToken = async (req, res) => {
     // Set new refresh token cookie
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
       path: '/',
     });
@@ -219,8 +218,8 @@ exports.logout = async (req, res) => {
     // Clear refresh token cookie
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      secure: true,
+      sameSite: 'none',
       path: '/',
     });
 
