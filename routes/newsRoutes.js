@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const newsController = require('../controllers/newsController');
-const { upload } = require('../middleware/uploadMiddleware');
+const { upload, handleMulterError } = require('../middleware/uploadMiddleware');
 const auth = require('../middleware/authMiddleware');
 
 // Accept thumbnail + up to 10 images + up to 10 section images (sectionImage_0, sectionImage_1, etc.)
@@ -20,7 +20,7 @@ const newsUpload = upload.fields([
   { name: 'sectionImage_9', maxCount: 1 },
 ]);
 
-router.post('/', auth, newsUpload, newsController.createNews);
+router.post('/', auth, newsUpload, handleMulterError, newsController.createNews);
 router.get('/', newsController.getNews);
 router.get('/slug/:slug', newsController.getNewsBySlug);
 router.delete('/:id', auth, newsController.deleteNews);

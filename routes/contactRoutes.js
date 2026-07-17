@@ -4,10 +4,9 @@ const contactController = require('../controllers/contactController');
 const protect = require('../middleware/authMiddleware');
 const rateLimit = require('express-rate-limit');
 
-// Rate limiting for public contact submission to prevent spam
 const contactLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // 5 requests per IP per hour
+  max: 50, // Increased to 50 requests per IP per hour to prevent accidental blocking
   message: { message: 'Too many requests from this IP, please try again after an hour' }
 });
 

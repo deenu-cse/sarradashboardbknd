@@ -13,6 +13,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy for Render load balancers - critical for rate limiting and secure cookies
+app.set('trust proxy', 1);
+
 // SECURITY HEADERS (Helmet.js)
 const isProduction = process.env.NODE_ENV === 'production' && process.env.ENABLE_HTTPS === 'true';
 
@@ -43,9 +46,9 @@ app.use(helmet({
 // Hide X-Powered-By header
 app.disable('x-powered-by');
 
-// REQUEST SIZE LIMITS
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// REQUEST SIZE LIMITS - Increased for contact form messages
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // CORS CONFIGURATION - Strict whitelist from env
 const corsOptions = {
@@ -75,7 +78,7 @@ app.use(cookieParser());
 // RATE LIMITING - All endpoints
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 300, // Increased limit
   message: { message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -145,10 +148,15 @@ app.use((err, req, res, next) => {
     console.error('Stack:', err.stack);
   }
 
-  // Always return generic message to client
-  res.status(err.status || 500).json({
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
-  });
+  const statusCode = err.status || err.statusCode || 500;
+
+  // For client errors (4xx), pass through the message — it's safe and useful
+  // For server errors (5xx), hide internals in production
+  const message = statusCode < 500
+    ? (err.message || 'Bad request')
+    : (process.env.NODE_ENV === 'development' ? err.message : 'Internal server error');
+
+  res.status(statusCode).json({ message });
 });
 
 const PORT = process.env.PORT || 5000;
