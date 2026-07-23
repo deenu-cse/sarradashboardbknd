@@ -28,6 +28,50 @@ const generateRefreshToken = (admin) => {
   );
 };
 
+// Dynamic cookie configuration helper
+const getCookieOptions = (req) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  // Allow secure cookies in production or HTTPS connections
+  const isSecure = isProduction || (req && (req.secure || req.headers['x-forwarded-proto'] === 'https'));
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: isSecure ? 'none' : 'lax',
+    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    path: '/',
+  };
+};
+
+// Helper to extract candidate refresh tokens from request (handles duplicate or legacy cookie headers)
+const getCandidateRefreshTokens = (req) => {
+  const tokens = [];
+
+  // Check req.cookies parsed object
+  if (req.cookies?.refreshToken) {
+    if (Array.isArray(req.cookies.refreshToken)) {
+      tokens.push(...req.cookies.refreshToken);
+    } else {
+      tokens.push(req.cookies.refreshToken);
+    }
+  }
+
+  // Parse raw cookie header manually to catch duplicate cookie keys sent by browser
+  if (req.headers.cookie) {
+    const rawCookies = req.headers.cookie.split(';');
+    for (const cookie of rawCookies) {
+      const parts = cookie.trim().split('=');
+      if (parts[0] === 'refreshToken' && parts[1]) {
+        const tokenVal = parts.slice(1).join('=');
+        if (!tokens.includes(tokenVal)) {
+          tokens.push(tokenVal);
+        }
+      }
+    }
+  }
+
+  return tokens;
+};
+
 // Login endpoint
 exports.login = async (req, res) => {
   try {
@@ -98,13 +142,7 @@ exports.login = async (req, res) => {
       ip: req.ip,
     });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+    res.cookie('refreshToken', refreshToken, getCookieOptions(req));
 
     // Return access token (short-lived, stored in memory on client)
     res.status(200).json({
@@ -127,23 +165,31 @@ exports.login = async (req, res) => {
 // Refresh token endpoint
 exports.refreshToken = async (req, res) => {
   try {
-    // Get refresh token from cookie
-    const refreshToken = req.cookies?.refreshToken;
+    const candidateTokens = getCandidateRefreshTokens(req);
 
-    if (!refreshToken) {
+    if (candidateTokens.length === 0) {
       return res.status(401).json({ message: 'Refresh token required' });
     }
 
-    // Verify refresh token
-    let decoded;
-    try {
-      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
+    let refreshToken = null;
+    let decoded = null;
+
+    // Find a valid refresh token among candidates
+    for (const token of candidateTokens) {
+      try {
+        const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+        if (payload && payload.type === 'refresh' && payload.adminId) {
+          refreshToken = token;
+          decoded = payload;
+          break;
+        }
+      } catch (err) {
+        // Skip invalid candidate token
+      }
     }
 
-    if (decoded.type !== 'refresh') {
-      return res.status(401).json({ message: 'Invalid token type' });
+    if (!refreshToken || !decoded) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
     }
 
     // Check if token exists in database (not revoked)
@@ -179,13 +225,7 @@ exports.refreshToken = async (req, res) => {
     });
 
     // Set new refresh token cookie
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+    res.cookie('refreshToken', newRefreshToken, getCookieOptions(req));
 
     // Generate new access token
     const accessToken = generateAccessToken(admin);
@@ -205,29 +245,24 @@ exports.refreshToken = async (req, res) => {
 // Logout endpoint
 exports.logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies?.refreshToken;
+    const candidateTokens = getCandidateRefreshTokens(req);
 
-    if (refreshToken) {
-      // Revoke refresh token in database
+    if (candidateTokens.length > 0) {
+      // Revoke all candidate refresh tokens in database
       await RefreshToken.updateMany(
-        { token: refreshToken },
+        { token: { $in: candidateTokens } },
         { $set: { isRevoked: true, revokedAt: new Date() } }
       );
     }
 
     // Clear refresh token cookie
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/',
-    });
+    res.clearCookie('refreshToken', getCookieOptions(req));
 
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error:', err.message);
     // Still clear cookie even if DB update fails
-    res.clearCookie('refreshToken', { path: '/' });
+    res.clearCookie('refreshToken', getCookieOptions(req));
     res.status(200).json({ message: 'Logged out' });
   }
 };
