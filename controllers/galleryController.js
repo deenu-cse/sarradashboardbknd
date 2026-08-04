@@ -1,16 +1,15 @@
 const Gallery = require('../models/Gallery');
+const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
 
 // Input validation helper
 const validateGalleryInput = (title, type) => {
   const errors = [];
 
-  if (!title || typeof title !== 'string' || title.trim().length === 0) {
-    errors.push('Title is required');
-  } else if (title.trim().length > 200) {
+  if (title && title.trim().length > 200) {
     errors.push('Title must be less than 200 characters');
   }
 
-  if (!type || !['global', 'district'].includes(type)) {
+  if (type && !['global', 'district'].includes(type)) {
     errors.push('Type must be either "global" or "district"');
   }
 
@@ -48,9 +47,9 @@ exports.createGallery = async (req, res) => {
     }
 
     const gallery = new Gallery({
-      title: title.trim(),
+      title: title ? title.trim() : undefined,
       image,
-      type,
+      type: type || 'district',
       district: district ? district.trim() : undefined
     });
 
@@ -116,10 +115,16 @@ exports.deleteGallery = async (req, res) => {
       return res.status(400).json({ message: 'Invalid gallery ID' });
     }
 
-    const gallery = await Gallery.findByIdAndDelete(id);
+    const gallery = await Gallery.findById(id);
     if (!gallery) {
       return res.status(404).json({ message: 'Gallery item not found' });
     }
+
+    if (gallery.image) {
+      deleteFromCloudinary(gallery.image);
+    }
+
+    await Gallery.findByIdAndDelete(id);
 
     res.status(200).json({ message: 'Gallery item deleted successfully' });
   } catch (err) {

@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const gallerySchema = new mongoose.Schema({
-  title: { type: String, required: true },
+  title: { type: String },
   image: { type: String, required: true }, // Cloudinary URL
-  type: { type: String, enum: ['global', 'district'], required: true },
+  type: { type: String, default: 'district' },
   district: { type: String } // Only needed if type is 'district'
 }, { timestamps: true });
 

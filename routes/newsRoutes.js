@@ -23,6 +23,9 @@ const newsUpload = upload.fields([
 router.post('/', auth, newsUpload, handleMulterError, newsController.createNews);
 router.get('/', newsController.getNews);
 router.get('/slug/:slug', newsController.getNewsBySlug);
+router.get('/:id', newsController.getNewsById);
+router.put('/:id', auth, newsUpload, handleMulterError, newsController.updateNews);
 router.delete('/:id', auth, newsController.deleteNews);
 
 module.exports = router;
+

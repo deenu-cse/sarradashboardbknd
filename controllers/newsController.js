@@ -1,4 +1,5 @@
 const News = require('../models/News');
+const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
 const mongoose = require('mongoose');
 
 // Input validation helper
@@ -131,6 +132,141 @@ exports.getNewsBySlug = async (req, res) => {
   }
 };
 
+exports.getNewsById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid news ID' });
+    }
+
+    const article = await News.findById(id);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+    res.status(200).json(article);
+  } catch (err) {
+    console.error('Get news by ID error:', err.message);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+
+exports.updateNews = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid news ID' });
+    }
+
+    const news = await News.findById(id);
+    if (!news) {
+      return res.status(404).json({ message: 'News not found' });
+    }
+
+    const { title, district_news, removeThumbnail } = req.body;
+
+    // Parse sections
+    let sections = [];
+    if (req.body.sections) {
+      try {
+        sections = typeof req.body.sections === 'string'
+          ? JSON.parse(req.body.sections)
+          : req.body.sections;
+      } catch (parseErr) {
+        return res.status(400).json({ message: 'Invalid sections format' });
+      }
+    }
+
+    // Parse list of section image indices to remove
+    let removeSectionImages = [];
+    if (req.body.removeSectionImages) {
+      try {
+        removeSectionImages = typeof req.body.removeSectionImages === 'string'
+          ? JSON.parse(req.body.removeSectionImages)
+          : req.body.removeSectionImages;
+      } catch {
+        removeSectionImages = [];
+      }
+    }
+
+    // Validate input
+    const validationErrors = validateNewsInput(title || news.title, sections);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ message: validationErrors.join(', ') });
+    }
+
+    // Track old images to clean up from Cloudinary
+    const imagesToDelete = [];
+
+    // Update title
+    if (title !== undefined) {
+      news.title = title.trim();
+    }
+
+    // Update district_news
+    if (district_news !== undefined) {
+      news.district_news = district_news === 'true' || district_news === true;
+    }
+
+    // Handle thumbnail
+    if (removeThumbnail === 'true' || removeThumbnail === true) {
+      if (news.thumbnail) {
+        imagesToDelete.push(news.thumbnail);
+      }
+      news.thumbnail = '';
+    }
+    if (req.files && req.files.thumbnail && req.files.thumbnail[0]) {
+      // New thumbnail uploaded - delete old one
+      if (news.thumbnail) {
+        imagesToDelete.push(news.thumbnail);
+      }
+      news.thumbnail = req.files.thumbnail[0].path;
+    }
+
+    // Handle sections
+    sections = sections.map((section, idx) => {
+      // Check if this section image should be removed
+      if (removeSectionImages.includes(idx)) {
+        // Find old section image to delete
+        if (news.sections[idx] && news.sections[idx].image) {
+          imagesToDelete.push(news.sections[idx].image);
+        }
+        section.image = '';
+      } else if (req.files && req.files[`sectionImage_${idx}`] && req.files[`sectionImage_${idx}`][0]) {
+        // New section image uploaded - delete old one
+        if (news.sections[idx] && news.sections[idx].image) {
+          imagesToDelete.push(news.sections[idx].image);
+        }
+        section.image = req.files[`sectionImage_${idx}`][0].path;
+      } else {
+        // Keep existing image if present
+        if (news.sections[idx] && news.sections[idx].image && !section.image) {
+          section.image = news.sections[idx].image;
+        }
+      }
+      return section;
+    });
+
+    news.sections = sections;
+
+    await news.save();
+
+    // Clean up old images from Cloudinary (fire-and-forget)
+    // Clean up old images from Cloudinary (fire-and-forget)
+    for (const imgUrl of imagesToDelete) {
+      deleteFromCloudinary(imgUrl);
+    }
+
+    res.status(200).json(news);
+  } catch (err) {
+    console.error('Update news error:', err.message);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 exports.deleteNews = async (req, res) => {
   try {
     const { id } = req.params;
@@ -140,10 +276,29 @@ exports.deleteNews = async (req, res) => {
       return res.status(400).json({ message: 'Invalid news ID' });
     }
 
-    const news = await News.findByIdAndDelete(id);
+    const news = await News.findById(id);
     if (!news) {
       return res.status(404).json({ message: 'News not found' });
     }
+
+    // Clean up Cloudinary assets
+    if (news.thumbnail) {
+      deleteFromCloudinary(news.thumbnail);
+    }
+    if (news.images && news.images.length > 0) {
+      for (const imgUrl of news.images) {
+        deleteFromCloudinary(imgUrl);
+      }
+    }
+    if (news.sections && news.sections.length > 0) {
+      for (const section of news.sections) {
+        if (section.image) {
+          deleteFromCloudinary(section.image);
+        }
+      }
+    }
+
+    await News.findByIdAndDelete(id);
 
     res.status(200).json({ message: 'News deleted successfully' });
   } catch (err) {

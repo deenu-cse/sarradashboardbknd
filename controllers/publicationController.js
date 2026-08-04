@@ -1,4 +1,5 @@
 const Publication = require('../models/Publication');
+const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
 
 const validatePublicationInput = (title, author) => {
   const errors = [];
@@ -94,10 +95,19 @@ exports.deletePublication = async (req, res) => {
       return res.status(400).json({ message: 'Invalid publication ID' });
     }
 
-    const publication = await Publication.findByIdAndDelete(id);
+    const publication = await Publication.findById(id);
     if (!publication) {
       return res.status(404).json({ message: 'Publication not found' });
     }
+
+    if (publication.coverImage) {
+      deleteFromCloudinary(publication.coverImage, 'image');
+    }
+    if (publication.pdfUrl) {
+      deleteFromCloudinary(publication.pdfUrl, 'raw');
+    }
+
+    await Publication.findByIdAndDelete(id);
 
     res.status(200).json({ message: 'Publication deleted successfully' });
   } catch (err) {
