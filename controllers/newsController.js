@@ -1,5 +1,6 @@
 const News = require('../models/News');
-const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
+const { deleteStoredFile } = require('../utils/cloudinaryUtils');
+const { getFileUrlPath } = require('../middleware/uploadMiddleware');
 const mongoose = require('mongoose');
 
 // Input validation helper
@@ -55,16 +56,16 @@ exports.createNews = async (req, res) => {
 
     if (req.files) {
       if (req.files.thumbnail && req.files.thumbnail[0]) {
-        thumbnail = req.files.thumbnail[0].path;
+        thumbnail = getFileUrlPath(req.files.thumbnail[0]);
       }
       if (req.files.images) {
-        images = req.files.images.map(file => file.path);
+        images = req.files.images.map(file => getFileUrlPath(file));
       }
       // Handle section images
       sections = sections.map((section, idx) => {
         const fieldName = `sectionImage_${idx}`;
         if (req.files[fieldName] && req.files[fieldName][0]) {
-          section.image = req.files[fieldName][0].path;
+          section.image = getFileUrlPath(req.files[fieldName][0]);
         }
         return section;
       });
@@ -198,7 +199,7 @@ exports.updateNews = async (req, res) => {
       return res.status(400).json({ message: validationErrors.join(', ') });
     }
 
-    // Track old images to clean up from Cloudinary
+    // Track old images to clean up from local storage
     const imagesToDelete = [];
 
     // Update title
@@ -223,7 +224,7 @@ exports.updateNews = async (req, res) => {
       if (news.thumbnail) {
         imagesToDelete.push(news.thumbnail);
       }
-      news.thumbnail = req.files.thumbnail[0].path;
+      news.thumbnail = getFileUrlPath(req.files.thumbnail[0]);
     }
 
     // Handle sections
@@ -240,7 +241,7 @@ exports.updateNews = async (req, res) => {
         if (news.sections[idx] && news.sections[idx].image) {
           imagesToDelete.push(news.sections[idx].image);
         }
-        section.image = req.files[`sectionImage_${idx}`][0].path;
+        section.image = getFileUrlPath(req.files[`sectionImage_${idx}`][0]);
       } else {
         // Keep existing image if present
         if (news.sections[idx] && news.sections[idx].image && !section.image) {
@@ -254,10 +255,9 @@ exports.updateNews = async (req, res) => {
 
     await news.save();
 
-    // Clean up old images from Cloudinary (fire-and-forget)
-    // Clean up old images from Cloudinary (fire-and-forget)
+    // Clean up old images from local storage (fire-and-forget)
     for (const imgUrl of imagesToDelete) {
-      deleteFromCloudinary(imgUrl);
+      deleteStoredFile(imgUrl);
     }
 
     res.status(200).json(news);
@@ -281,19 +281,19 @@ exports.deleteNews = async (req, res) => {
       return res.status(404).json({ message: 'News not found' });
     }
 
-    // Clean up Cloudinary assets
+    // Clean up local assets
     if (news.thumbnail) {
-      deleteFromCloudinary(news.thumbnail);
+      deleteStoredFile(news.thumbnail);
     }
     if (news.images && news.images.length > 0) {
       for (const imgUrl of news.images) {
-        deleteFromCloudinary(imgUrl);
+        deleteStoredFile(imgUrl);
       }
     }
     if (news.sections && news.sections.length > 0) {
       for (const section of news.sections) {
         if (section.image) {
-          deleteFromCloudinary(section.image);
+          deleteStoredFile(section.image);
         }
       }
     }

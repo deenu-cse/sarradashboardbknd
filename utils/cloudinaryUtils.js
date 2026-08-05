@@ -1,38 +1,53 @@
-const { cloudinary } = require('../middleware/uploadMiddleware');
+const fs = require('fs');
+const path = require('path');
 
-// Helper: extract Cloudinary public_id from a URL
-const extractPublicId = (url) => {
-  if (!url) return null;
-  try {
-    const parts = url.split('/upload/');
-    if (parts.length < 2) return null;
-    const afterUpload = parts[1];
-    const withoutVersion = afterUpload.replace(/^v\d+\//, '');
-    const publicId = withoutVersion.replace(/\.[^/.]+$/, '');
-    return publicId;
-  } catch {
+const projectRoot = path.resolve(__dirname, '..');
+
+const normalizeStoredFilePath = (filePath) => {
+  if (!filePath || typeof filePath !== 'string') {
     return null;
   }
+
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    try {
+      const parsedUrl = new URL(filePath);
+      return path.join(projectRoot, parsedUrl.pathname.replace(/^\/+/, ''));
+    } catch {
+      return null;
+    }
+  }
+
+  if (path.isAbsolute(filePath)) {
+    return filePath;
+  }
+
+  return path.join(projectRoot, filePath.replace(/^\/+/, ''));
 };
 
-// Helper: delete a file from Cloudinary
-const deleteFromCloudinary = async (url, resourceType = 'image') => {
-  if (!url) return false;
-  const publicId = extractPublicId(url);
-  if (!publicId) return false;
-  
+const deleteStoredFile = async (filePath) => {
+  if (!filePath) return;
+
   try {
-    // Note: PDF files are usually uploaded with resource_type: 'raw'
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
-    console.log(`Deleted Cloudinary asset: ${publicId} (${resourceType}), result:`, result);
-    return true;
+    const absolutePath = normalizeStoredFilePath(filePath);
+    if (!absolutePath) {
+      console.warn(`Skipping deletion for invalid storage path: ${filePath}`);
+      return;
+    }
+
+    await fs.promises.access(absolutePath);
+    await fs.promises.unlink(absolutePath);
+    console.log(`Deleted local file: ${absolutePath}`);
   } catch (err) {
-    console.error(`Failed to delete Cloudinary asset: ${publicId}`, err);
-    return false;
+    if (err && err.code === 'ENOENT') {
+      console.warn(`Local file not found, skipping deletion: ${filePath}`);
+      return;
+    }
+
+    console.error(`Failed to delete local file: ${filePath}`, err);
   }
 };
 
 module.exports = {
-  extractPublicId,
-  deleteFromCloudinary
+  deleteStoredFile,
+  deleteFromCloudinary: deleteStoredFile
 };

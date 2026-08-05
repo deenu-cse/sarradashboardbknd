@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -10,6 +11,11 @@ const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
 
 dotenv.config();
+
+// Bypass local SSL cert verification for external requests during dev
+if (process.env.NODE_ENV !== 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 const app = express();
 
@@ -47,12 +53,11 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+      imgSrc: ["'self'", "data:"],
       fontSrc: ["'self'"],
-      // Allow Cloudinary PDFs to be embedded/viewed in browser
-      objectSrc: ["'self'", "https://res.cloudinary.com"],
-      frameSrc: ["'self'", "https://res.cloudinary.com"],
-      connectSrc: ["'self'", "https://res.cloudinary.com"],
+      objectSrc: ["'self'"],
+      frameSrc: ["'self'"],
+      connectSrc: ["'self'"],
       ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
     },
   },
@@ -75,13 +80,28 @@ app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 // COOKIE PARSER
 app.use(cookieParser());
 
-// RATE LIMITING - All endpoints
+// Serve uploaded files publicly
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Strip port from IP address (IIS reverse proxy sometimes sends "ip:port" format)
+const stripPort = (ip) => ip ? ip.split(':').slice(0, ip.includes('.') ? 1 : -1).join(':').replace(/^\[|\]$/g, '') || ip.split(':')[0] : ip;
+
+const getCleanIp = (req) => {
+  const rawIp = req.ip || req.connection.remoteAddress || '';
+  // If it's IPv4 with a port (e.g. "10.67.58.6:21646"), strip the port
+  if (rawIp.includes('.') && rawIp.includes(':')) {
+    return rawIp.split(':')[0];
+  }
+  return rawIp;
+};
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 300, // Increased limit
   message: { message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: getCleanIp,
 });
 
 // STRICTER RATE LIMITING for auth endpoints
@@ -91,6 +111,7 @@ const authLimiter = rateLimit({
   message: { message: 'Too many login attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: getCleanIp,
 });
 
 // Apply rate limiting
@@ -107,8 +128,10 @@ app.use(xss());
 // HTTP PARAMETER POLLUTION PREVENTION
 app.use(hpp());
 
-// Database connection with TLS
-mongoose.connect(process.env.MONGODB_URI, {
+// Database connection with TLS (only for cloud/Atlas — local MongoDB doesn't use TLS)
+const isLocalDB = process.env.MONGODB_URI.includes('localhost') || process.env.MONGODB_URI.includes('127.0.0.1');
+
+mongoose.connect(process.env.MONGODB_URI, isLocalDB ? {} : {
   tls: true,
   tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production'
 })

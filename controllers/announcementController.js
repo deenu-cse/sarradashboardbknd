@@ -1,4 +1,6 @@
 const Announcement = require('../models/Announcement');
+const { deleteStoredFile } = require('../utils/cloudinaryUtils');
+const { getFileUrlPath } = require('../middleware/uploadMiddleware');
 const mongoose = require('mongoose');
 
 // Input validation helper
@@ -30,7 +32,7 @@ exports.createAnnouncement = async (req, res) => {
       return res.status(400).json({ message: validationErrors.join(', ') });
     }
 
-    const image = req.file ? req.file.path : '';
+    const image = req.file ? getFileUrlPath(req.file) : '';
 
     const announcement = new Announcement({
       title: title.trim(),
@@ -85,6 +87,10 @@ exports.deleteAnnouncement = async (req, res) => {
     const announcement = await Announcement.findByIdAndDelete(id);
     if (!announcement) {
       return res.status(404).json({ message: 'Announcement not found' });
+    }
+
+    if (announcement.image) {
+      deleteStoredFile(announcement.image);
     }
 
     res.status(200).json({ message: 'Announcement deleted successfully' });

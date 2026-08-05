@@ -1,5 +1,6 @@
 const Publication = require('../models/Publication');
-const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
+const { deleteStoredFile } = require('../utils/cloudinaryUtils');
+const { getFileUrlPath } = require('../middleware/uploadMiddleware');
 
 const validatePublicationInput = (title, author) => {
   const errors = [];
@@ -31,10 +32,10 @@ exports.createPublication = async (req, res) => {
 
     if (req.files) {
       if (req.files.coverImage && req.files.coverImage[0]) {
-        coverImage = req.files.coverImage[0].path;
+        coverImage = getFileUrlPath(req.files.coverImage[0]);
       }
       if (req.files.pdf && req.files.pdf[0]) {
-        pdfUrl = req.files.pdf[0].path;
+        pdfUrl = getFileUrlPath(req.files.pdf[0]);
       }
     }
 
@@ -101,10 +102,10 @@ exports.deletePublication = async (req, res) => {
     }
 
     if (publication.coverImage) {
-      deleteFromCloudinary(publication.coverImage, 'image');
+      deleteStoredFile(publication.coverImage);
     }
     if (publication.pdfUrl) {
-      deleteFromCloudinary(publication.pdfUrl, 'raw');
+      deleteStoredFile(publication.pdfUrl);
     }
 
     await Publication.findByIdAndDelete(id);

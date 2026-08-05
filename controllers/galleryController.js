@@ -1,5 +1,6 @@
 const Gallery = require('../models/Gallery');
-const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
+const { deleteStoredFile } = require('../utils/cloudinaryUtils');
+const { getFileUrlPath } = require('../middleware/uploadMiddleware');
 
 // Input validation helper
 const validateGalleryInput = (title, type) => {
@@ -40,7 +41,7 @@ exports.createGallery = async (req, res) => {
       }
     }
 
-    const image = req.file ? req.file.path : '';
+    const image = req.file ? getFileUrlPath(req.file) : '';
 
     if (!image) {
       return res.status(400).json({ message: 'Image is required' });
@@ -121,7 +122,7 @@ exports.deleteGallery = async (req, res) => {
     }
 
     if (gallery.image) {
-      deleteFromCloudinary(gallery.image);
+      deleteStoredFile(gallery.image);
     }
 
     await Gallery.findByIdAndDelete(id);
