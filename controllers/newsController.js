@@ -28,6 +28,15 @@ const validateNewsInput = (title, sections) => {
   return errors;
 };
 
+const parseCreatedAt = (createdAt) => {
+  if (createdAt === undefined || createdAt === null || createdAt === '') {
+    return null;
+  }
+
+  const parsedDate = new Date(createdAt);
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
+};
+
 exports.createNews = async (req, res) => {
   try {
     const { title, district_news } = req.body;
@@ -167,7 +176,7 @@ exports.updateNews = async (req, res) => {
       return res.status(404).json({ message: 'News not found' });
     }
 
-    const { title, district_news, removeThumbnail } = req.body;
+    const { title, district_news, removeThumbnail, createdAt } = req.body;
 
     // Parse sections
     let sections = [];
@@ -199,6 +208,11 @@ exports.updateNews = async (req, res) => {
       return res.status(400).json({ message: validationErrors.join(', ') });
     }
 
+    const parsedCreatedAt = parseCreatedAt(createdAt);
+    if (parsedCreatedAt === undefined) {
+      return res.status(400).json({ message: 'Invalid createdAt date' });
+    }
+
     // Track old images to clean up from local storage
     const imagesToDelete = [];
 
@@ -210,6 +224,10 @@ exports.updateNews = async (req, res) => {
     // Update district_news
     if (district_news !== undefined) {
       news.district_news = district_news === 'true' || district_news === true;
+    }
+
+    if (parsedCreatedAt) {
+      news.createdAt = parsedCreatedAt;
     }
 
     // Handle thumbnail

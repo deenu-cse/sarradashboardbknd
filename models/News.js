@@ -13,7 +13,8 @@ const newsSchema = new mongoose.Schema({
   district_news: { type: Boolean, default: false },
   date: { type: Date, default: Date.now },
   sections: [newsSectionSchema],
-  images: [{ type: String }]
+  images: [{ type: String }],
+  createdAt: { type: Date, immutable: false }
 }, { timestamps: true });
 
 newsSchema.pre('save', function () {
