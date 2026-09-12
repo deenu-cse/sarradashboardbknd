@@ -5,7 +5,10 @@ const announcementSchema = new mongoose.Schema({
   slug: { type: String },
   description: { type: String, required: true },
   image: { type: String }, // Local upload URL
+  images: [{ type: String }], // Local upload URLs for multiple images
+  pdfUrl: { type: String }, // Local upload URL for PDF
   date: { type: Date, default: Date.now },
+  lastDate: { type: Date, default: null }, // Expiration / closing / deadline date
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
