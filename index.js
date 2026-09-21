@@ -146,6 +146,7 @@ app.use(auditLogger);
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/news', require('./routes/newsRoutes'));
 app.use('/api/gallery', require('./routes/galleryRoutes'));
+app.use('/api/community-engagement', require('./routes/communityEngagementRoutes'));
 app.use('/api/videos', require('./routes/videoRoutes'));
 app.use('/api/publications', require('./routes/publicationRoutes'));
 app.use('/api/ticker', require('./routes/tickerRoutes'));
