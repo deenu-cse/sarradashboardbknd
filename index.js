@@ -151,6 +151,7 @@ app.use('/api/videos', require('./routes/videoRoutes'));
 app.use('/api/publications', require('./routes/publicationRoutes'));
 app.use('/api/ticker', require('./routes/tickerRoutes'));
 app.use('/api/announcements', require('./routes/announcementRoutes'));
+app.use('/api/trench-ponds', require('./routes/trenchPondRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/contact', require('./routes/contactRoutes'));
 
