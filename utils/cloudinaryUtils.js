@@ -8,6 +8,12 @@ const normalizeStoredFilePath = (filePath) => {
     return null;
   }
 
+  // Stored paths look like "/uploads/pdfs/x.pdf". path.isAbsolute() is true for those
+  // too, so they have to be resolved against the project root before that check.
+  if (filePath.startsWith('/uploads/')) {
+    return path.join(projectRoot, filePath);
+  }
+
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
     try {
       const parsedUrl = new URL(filePath);
@@ -48,6 +54,7 @@ const deleteStoredFile = async (filePath) => {
 };
 
 module.exports = {
+  normalizeStoredFilePath,
   deleteStoredFile,
   deleteFromCloudinary: deleteStoredFile
 };

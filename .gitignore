@@ -25,3 +25,6 @@ build/
 
 # Testing
 coverage/
+
+# Candidate documents (personal data)
+uploads/applications/

@@ -80,8 +80,10 @@ app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 // COOKIE PARSER
 app.use(cookieParser());
 
-// Serve uploaded files publicly
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve uploaded files publicly. Folders are listed one by one so that uploads/applications
+// (candidate resumes and photos) is unreachable here, however the URL is encoded.
+app.use('/uploads/images', express.static(path.join(__dirname, 'uploads', 'images')));
+app.use('/uploads/pdfs', express.static(path.join(__dirname, 'uploads', 'pdfs')));
 
 // Strip port from IP address (IIS reverse proxy sometimes sends "ip:port" format)
 const stripPort = (ip) => ip ? ip.split(':').slice(0, ip.includes('.') ? 1 : -1).join(':').replace(/^\[|\]$/g, '') || ip.split(':')[0] : ip;
@@ -114,10 +116,21 @@ const authLimiter = rateLimit({
   keyGenerator: getCleanIp,
 });
 
+// Job applications are public and write files to disk
+const applicationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30, // Candidates often share one IP at a cyber cafe
+  message: { message: 'Too many applications from this network, please try again after an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getCleanIp,
+});
+
 // Apply rate limiting
 app.use('/api/', generalLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.post('/api/jobs/:id/apply', applicationLimiter);
 
 // NOSQL INJECTION PREVENTION - MongoDB sanitize
 app.use(mongoSanitize());
@@ -154,6 +167,8 @@ app.use('/api/announcements', require('./routes/announcementRoutes'));
 app.use('/api/trench-ponds', require('./routes/trenchPondRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/contact', require('./routes/contactRoutes'));
+app.use('/api/jobs', require('./routes/jobRoutes'));
+app.use('/api/applications', require('./routes/applicationRoutes'));
 
 // Health check endpoint (no sensitive info)
 app.get('/api/health', (req, res) => {
